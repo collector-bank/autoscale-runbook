@@ -232,7 +232,7 @@ $dayObjects = $scalingSchedule | ConvertFrom-Json | Where-Object { $_.WeekDays -
 
 if ($shouldScaleSql) {
     $initialSql = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
-    $initialSqlSku = $sqlDb.CurrentServiceObjectiveName[1]
+    $initialSqlSku = $initialSql.CurrentServiceObjectiveName[1]
 
     Write-Output "Initial database status: $($initialSql.Status), sku: $($initialSqlSku)" | timestamp
 
@@ -278,7 +278,7 @@ if ($shouldScaleSql) {
     $finalSqlTier = $finalSql.Edition[1]
     $finalSqlSku = $finalSql.CurrentServiceObjectiveName[1]
 
-    Write-Output "Final database status: $($finalSqlDb.Status), sku: $($finalSqlSku), tier: $($finalSqlTier)" | timestamp
+    Write-Output "Final database status: $($finalSql.Status), sku: $($finalSqlSku), tier: $($finalSqlTier)" | timestamp
 }
 
 if ($shouldScaleAsp) {
