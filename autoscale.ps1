@@ -107,9 +107,9 @@ param(
     [string] $scaledAspWorkers
 )
 
-Write-Output "Script started." | timestamp
-
 filter timestamp { "[$(Get-Date -Format G)]: $_" }
+
+Write-Output "Script started." | timestamp
 
 if ([string]::IsNullOrEmpty($serverName) -or
     [string]::IsNullOrEmpty($databaseName) -or
