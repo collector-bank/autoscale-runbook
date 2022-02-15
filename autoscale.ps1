@@ -107,6 +107,10 @@ param(
     [string] $scaledAspWorkers
 )
 
+Write-Output "Script started." | timestamp
+
+filter timestamp { "[$(Get-Date -Format G)]: $_" }
+
 if ([string]::IsNullOrEmpty($serverName) -or
     [string]::IsNullOrEmpty($databaseName) -or
     [string]::IsNullOrEmpty($defaultSqlSku) -or
@@ -132,41 +136,8 @@ else {
     $shouldScaleAsp = $true
 }
 
-filter timestamp { "[$(Get-Date -Format G)]: $_" }
-
-Write-Output "Script started." | timestamp
-
 $VerbosePreference = "Continue"
 $ErrorActionPreference = "Stop"
-
-#Authenticate with MSI
-Write-Output "Connecting to azure via  Connect-AzAccount -Identity" | timestamp
-Connect-AzAccount -Identity 
-
-#Get current date/time and convert to $scalingScheduleTimeZone
-$now = Get-Date
-$timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("W. Europe Standard Time")
-$startTime = [System.TimeZoneInfo]::ConvertTime($now, $timeZone)
-Write-Output "Time: $($startTime)." | timestamp
-
-#Get current day of week, based on converted start time
-$currentDayOfWeek = [Int]($startTime).DayOfWeek
-Write-Output "Current day of week: $currentDayOfWeek." | timestamp
-
-# Get the scaling schedule for the current day of week
-$dayObjects = $scalingSchedule | ConvertFrom-Json | Where-Object { $_.WeekDays -contains $currentDayOfWeek } `
-| Select-Object @{Name = "StartTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StartTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }, `
-@{Name = "StopTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StopTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }
-
-if ($shouldScaleSql) {
-    $sqlDb = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
-    $currentSqlSku = $sqlDb.CurrentServiceObjectiveName[1]
-}
-if ($shouldScaleAsp) {
-    $asp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
-    $currentAspTier = $asp.Sku.Tier
-    $currentAspWorkers = $asp.Sku.Capacity
-}
 
 function SetScaledDatabase {
     Write-Output "Check if current database sku/tier is matching" | timestamp
@@ -240,6 +211,40 @@ function SetDefaultAppServicePlan {
     }
 }
 
+#Authenticate with MSI
+Write-Output "Connecting to azure via  Connect-AzAccount -Identity" | timestamp
+Connect-AzAccount -Identity 
+
+#Get current date/time and convert to $scalingScheduleTimeZone
+$now = Get-Date
+$timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("W. Europe Standard Time")
+$startTime = [System.TimeZoneInfo]::ConvertTime($now, $timeZone)
+Write-Output "Time: $($startTime)." | timestamp
+
+#Get current day of week, based on converted start time
+$currentDayOfWeek = [Int]($startTime).DayOfWeek
+Write-Output "Current day of week: $currentDayOfWeek." | timestamp
+
+# Get the scaling schedule for the current day of week
+$dayObjects = $scalingSchedule | ConvertFrom-Json | Where-Object { $_.WeekDays -contains $currentDayOfWeek } `
+| Select-Object @{Name = "StartTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StartTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }, `
+@{Name = "StopTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StopTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }
+
+if ($shouldScaleSql) {
+    $initialSql = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
+    $initialSqlSku = $sqlDb.CurrentServiceObjectiveName[1]
+
+    Write-Output "Initial database status: $($initialSql.Status), sku: $($initialSqlSku)" | timestamp
+
+}
+if ($shouldScaleAsp) {
+    $initialAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
+    $initialAspTier = $asp.Sku.Tier
+    $initialAspWorkers = $asp.Sku.Capacity
+
+    Write-Output "Initial app service plan status: $($initialAsp.Status), workers: $($initialAspWorkers), tier: $($initialAspTier)" | timestamp
+}
+
 if ($dayObjects -ne $null) {
     $matchingObject = $dayObjects | Where-Object { ($startTime -ge $_.StartTime) -and ($startTime -lt $_.StopTime) } | Select-Object -First 1
     if ($matchingObject -ne $null) {
@@ -269,11 +274,11 @@ else {
 Write-Output "Done." | timestamp
 
 if ($shouldScaleSql) {
-    $finalSqlDb = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName
-    $finalSqlTier = $finalSqlDb.Edition[1]
-    $finalSqlSku = $finalSqlDb.CurrentServiceObjectiveName[1]
+    $finalSql = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName
+    $finalSqlTier = $finalSql.Edition[1]
+    $finalSqlSku = $finalSql.CurrentServiceObjectiveName[1]
 
-    Write-Output "Current database status: $($finalSqlDb.Status), sku: $($finalSqlSku), tier: $($finalSqlTier)" | timestamp
+    Write-Output "Final database status: $($finalSqlDb.Status), sku: $($finalSqlSku), tier: $($finalSqlTier)" | timestamp
 }
 
 if ($shouldScaleAsp) {
@@ -281,7 +286,7 @@ if ($shouldScaleAsp) {
     $finalAspTier = $finalAsp.Sku.Tier
     $finalAspWorkers = $finalAsp.Sku.Capacity
 
-    Write-Output "Current app service plan status: $($finalAsp.Status), workers: $($finalAspWorkers), tier: $($finalAspTier)" | timestamp
+    Write-Output "Final app service plan status: $($finalAsp.Status), workers: $($finalAspWorkers), tier: $($finalAspTier)" | timestamp
 }
 
 Write-Output "Script finished." | timestamp
