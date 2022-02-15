@@ -16,39 +16,39 @@
 
 .PARAMETER databaseName
     Azure SQL Database name (case sensitive).
-.PARAMETER defaultSqlSku
-    Azure SQL Database Sku.
-    Available values: 'None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical'.
 
 .PARAMETER defaultSqlTier
-    Azure SQL Database Tier.
+    Default Azure SQL Database Tier.
+    Available values: 'None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical'.
+
+.PARAMETER defaultSqlSku
+    Default Azure SQL Database Sku.
     Available values: S0, S1, S2, S4, S5, S6, S7, S9, S12, P1, P2, P4, P6, P11, P15.
 
-.PARAMETER scaledSqlSku
-    Azure SQL Database Sku.
+.PARAMETER scaledSqlTier
+    Scaled Azure SQL Database Tier.
      values: 'None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical'
 
-.PARAMETER scaledSqlTier
-    Azure SQL Database Tier.
+.PARAMETER scaledSqlSku
+    Scaled Azure SQL Database Sku.
     Available values: S0, S1, S2, S4, S5, S6, S7, S9, S12, P1, P2, P4, P6, P11, P15.
     
 .PARAMETER appServicePlanName
     Name of the App Service Plan
 
 .PARAMETER defaultAspTier
-    Azure App Service Plan Tier.
+    Default Azure App Service Plan Tier.
     Available values: Free, Shared, Basic, Standard, Premium, PremiumV2, PremiumV3, Isolated, IsolatedV2.
 
 .PARAMETER defaultAspWorkers
-    Azure SQL Database Sku.
-    Numbers of instances of the App Service Plan.
+    Default Numbers of instances of the App Service Plan.
 
 .PARAMETER scaledAspTier
-    Azure SQL Database Tier.
+    Scaled Azure SQL Database Tier.
     Available values: Free, Shared, Basic, Standard, Premium, PremiumV2, PremiumV3, Isolated, IsolatedV2.
 
 .PARAMETER scaledAspWorkers
-    Numbers of instances of the App Service Plan.
+    Scaled Numbers of instances of the App Service Plan.
 
 .EXAMPLE
     -resourceGroupName myResourceGroup
@@ -56,10 +56,10 @@
 
     -serverName mySqlServer
     -databaseName myDatabase
-    -defaultSqlSku Standard
-    -defaultSqlTier S0
-    -scaledSqlSku Standard
-    -scaledSqlTier S1
+    -defaultSqlTier Standard
+    -defaultSqlSku S0
+    -scaledSqlTier Standard
+    -scaledSqlSku S1
 
     -appServicePlanName myAppServicePlan
     -defaultAspTier Standard
@@ -86,22 +86,22 @@ param(
     [ValidateSet('None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical')]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
-    [string] $defaultSqlSku,
+    [string] $defaultSqlTier,
 
     [ValidateSet('S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
-    [string] $defaultSqlTier,
+    [string] $defaultSqlSku,
 
     [ValidateSet('None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical')]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
-    [string] $scaledSqlSku,
+    [string] $scaledSqlTier,
 
     [ValidateSet('S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
-    [string] $scaledSqlTier,
+    [string] $scaledSqlSku,
     
     [parameter(Mandatory = $false)]
     [string] $appServicePlanName,
@@ -129,10 +129,10 @@ param(
 
 if ([string]::IsNullOrEmpty($serverName) -or
     [string]::IsNullOrEmpty($databaseName) -or
-    [string]::IsNullOrEmpty($defaultSqlSku) -or
     [string]::IsNullOrEmpty($defaultSqlTier) -or
-    [string]::IsNullOrEmpty($scaledSqlSku) -or
-    [string]::IsNullOrEmpty($scaledSqlTier)) {
+    [string]::IsNullOrEmpty($defaultSqlSku) -or
+    [string]::IsNullOrEmpty($scaledSqlTier) -or
+    [string]::IsNullOrEmpty($scaledSqlSku)) {
     Write-Output "Database scaling is disabled" | timestamp
     $shouldScaleSql = $false
 }
@@ -182,8 +182,8 @@ $dayObjects = $scalingSchedule | ConvertFrom-Json | Where-Object { $_.WeekDays -
 
 if ($shouldScaleSql) {
     $sqlDb = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
-    $currentSqlTier = $sqlDb.CurrentServiceObjectiveName[1]
-    $currentSqlSku = $sqlDb.Edition[1] 
+    $currentSqlTier = $sqlDb.Edition[1] 
+    $currentSqlSku = $sqlDb.CurrentServiceObjectiveName[1]
 }
 if ($shouldScaleAsp) {
     $asp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
@@ -197,7 +197,7 @@ function SetScaledDatabase {
         Write-Output "Database is not in the sku and/or tier of the scaling schedule." | timestamp
         Write-Output "Scaling database to sku $scaledSqlSku and tier $scaledSqlTier initiated..." | timestamp
         try {
-            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -Edition $scaledSqlSku -RequestedServiceObjectiveName $scaledSqlTier
+            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -Edition $scaledSqlTier -RequestedServiceObjectiveName $scaledSqlSku
         }
         catch {
             $message = $_
@@ -233,7 +233,7 @@ function SetDefaultDatabase {
         Write-Output "Database is not in the default sku and/or tier. Scaling." | timestamp
         Write-Output "Scaling database to default to sku $defaultSqlSku and tier $defaultSqlTier initiated." | timestamp
         try {
-            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -Edition $defaultSqlSku -RequestedServiceObjectiveName $defaultSqlTier 
+            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -Edition $defaultSqlTier -RequestedServiceObjectiveName $defaultSqlSku 
         }
         catch {
             $message = $_
@@ -293,8 +293,8 @@ Write-Output "Done." | timestamp
 
 if ($shouldScaleSql) {
     $finalSqlDb = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName
-    $finalSqlTier = $finalSqlDb.CurrentServiceObjectiveName[1]
-    $finalSqlSku = $finalSqlDb.Edition[1]
+    $finalSqlTier = $finalSqlDb.Edition[1]
+    $finalSqlSku = $finalSqlDb.CurrentServiceObjectiveName[1]
 
     Write-Output "Current database status: $($finalSqlDb.Status), sku: $($finalSqlSku), tier: $($finalSqlTier)" | timestamp
 }
