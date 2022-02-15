@@ -17,17 +17,9 @@
 .PARAMETER databaseName
     Azure SQL Database name (case sensitive).
 
-.PARAMETER defaultSqlTier
-    Default Azure SQL Database Tier.
-    Available values: 'None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical'.
-
 .PARAMETER defaultSqlSku
     Default Azure SQL Database Sku.
     Available values: S0, S1, S2, S4, S5, S6, S7, S9, S12, P1, P2, P4, P6, P11, P15.
-
-.PARAMETER scaledSqlTier
-    Scaled Azure SQL Database Tier.
-     values: 'None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical'
 
 .PARAMETER scaledSqlSku
     Scaled Azure SQL Database Sku.
@@ -56,9 +48,7 @@
 
     -serverName mySqlServer
     -databaseName myDatabase
-    -defaultSqlTier Standard
     -defaultSqlSku S0
-    -scaledSqlTier Standard
     -scaledSqlSku S1
 
     -appServicePlanName myAppServicePlan
@@ -83,20 +73,10 @@ param(
     [AllowEmptyString()]
     [string] $databaseName,
 
-    [ValidateSet('None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical')]
-    [parameter(Mandatory = $false)]
-    [AllowEmptyString()]
-    [string] $defaultSqlTier,
-
     [ValidateSet('S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
     [string] $defaultSqlSku,
-
-    [ValidateSet('None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical')]
-    [parameter(Mandatory = $false)]
-    [AllowEmptyString()]
-    [string] $scaledSqlTier,
 
     [ValidateSet('S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
     [parameter(Mandatory = $false)]
@@ -129,9 +109,7 @@ param(
 
 if ([string]::IsNullOrEmpty($serverName) -or
     [string]::IsNullOrEmpty($databaseName) -or
-    [string]::IsNullOrEmpty($defaultSqlTier) -or
     [string]::IsNullOrEmpty($defaultSqlSku) -or
-    [string]::IsNullOrEmpty($scaledSqlTier) -or
     [string]::IsNullOrEmpty($scaledSqlSku)) {
     Write-Output "Database scaling is disabled" | timestamp
     $shouldScaleSql = $false
@@ -182,7 +160,6 @@ $dayObjects = $scalingSchedule | ConvertFrom-Json | Where-Object { $_.WeekDays -
 
 if ($shouldScaleSql) {
     $sqlDb = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
-    $currentSqlTier = $sqlDb.Edition[1] 
     $currentSqlSku = $sqlDb.CurrentServiceObjectiveName[1]
 }
 if ($shouldScaleAsp) {
@@ -193,11 +170,11 @@ if ($shouldScaleAsp) {
 
 function SetScaledDatabase {
     Write-Output "Check if current database sku/tier is matching" | timestamp
-    if ($currentSqlTier -ne $scaledSqlTier -or $currentSqlSku -ne $scaledSqlSku) {
+    if ($currentSqlSku -ne $scaledSqlSku) {
         Write-Output "Database is not in the sku and/or tier of the scaling schedule." | timestamp
-        Write-Output "Scaling database to sku $scaledSqlSku and tier $scaledSqlTier initiated..." | timestamp
+        Write-Output "Scaling database to sku $scaledSqlSku initiated..." | timestamp
         try {
-            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -Edition $scaledSqlTier -RequestedServiceObjectiveName $scaledSqlSku
+            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -RequestedServiceObjectiveName $scaledSqlSku
         }
         catch {
             $message = $_
@@ -229,11 +206,11 @@ function SetScaledAppServicePlan {
 
 function SetDefaultDatabase {
     Write-Output "Check if current database sku/tier matches the default." | timestamp
-    if ($currentSqlTier -ne $defaultSqlTier -or $currentSqlSku -ne $defaultSqlSku) {
+    if ($currentSqlSku -ne $defaultSqlSku) {
         Write-Output "Database is not in the default sku and/or tier. Scaling." | timestamp
-        Write-Output "Scaling database to default to sku $defaultSqlSku and tier $defaultSqlTier initiated." | timestamp
+        Write-Output "Scaling database to default to sku $defaultSqlSku initiated." | timestamp
         try {
-            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -Edition $defaultSqlTier -RequestedServiceObjectiveName $defaultSqlSku 
+            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -RequestedServiceObjectiveName $defaultSqlSku 
         }
         catch {
             $message = $_
