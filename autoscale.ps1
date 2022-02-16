@@ -139,10 +139,31 @@ else {
 $VerbosePreference = "Continue"
 $ErrorActionPreference = "Stop"
 
+#Authenticate with MSI
+Write-Output "Connecting to azure via  Connect-AzAccount -Identity" | timestamp
+Connect-AzAccount -Identity
+
+$initialSql = new-Object PsObject
+$initialAsp = new-Object PsObject
+
+if ($shouldScaleSql) {
+    $initialSql = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
+    $initialSqlSku = $initialSql.CurrentServiceObjectiveName[1]
+
+    Write-Output "Initial database status: $($initialSql.Status), sku: $($initialSqlSku)" | timestamp
+}
+if ($shouldScaleAsp) {
+    $initialAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
+    $initialAspTier = $asp.Sku.Tier
+    $initialAspWorkers = $asp.Sku.Capacity
+
+    Write-Output "Initial app service plan status: $($initialAsp.Status), workers: $($initialAspWorkers), tier: $($initialAspTier)" | timestamp
+}
+
 function SetScaledDatabase {
-    Write-Output "Check if current database sku/tier is matching" | timestamp
-    if ($currentSqlSku -ne $scaledSqlSku) {
-        Write-Output "Database is not in the sku and/or tier of the scaling schedule." | timestamp
+    Write-Output "Check if database is scaled already." | timestamp
+    if ($initialSqlSku -ne $scaledSqlSku) {
+        Write-Output "Database is not scaled already." | timestamp
         Write-Output "Scaling database to sku $scaledSqlSku initiated..." | timestamp
         try {
             Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -RequestedServiceObjectiveName $scaledSqlSku
@@ -153,14 +174,14 @@ function SetScaledDatabase {
         }
     }
     else {
-        Write-Output "Current database tier and sku match the scaling schedule already. Exiting..." | timestamp
+        Write-Output "Database sku is scaled already. Exiting" | timestamp
     }
 }
 
 function SetScaledAppServicePlan {
-    Write-Output "Check if current app service plan workers and tier are matching" | timestamp
-    if ($currentAspTier -ne $scaledAspTier -or $currentAspWorkers -ne $scaledAspWorkers) {
-        Write-Output "App service plan is not in the workers and/or tier of the scaling schedule." | timestamp
+    Write-Output "Check if current app service plan is scaled already" | timestamp
+    if ($initialAspTier -ne $scaledAspTier -or $initialAspWorkers -ne $scaledAspWorkers) {
+        Write-Output "App service plan is not scaled already." | timestamp
         Write-Output "Scaling app service plan to tier $scaledAspTier with $scaledAspWorkers workers initiated..." | timestamp
         try {
             Set-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName -Tier $scaledAspTier -NumberofWorkers $scaledAspWorkers
@@ -171,15 +192,15 @@ function SetScaledAppServicePlan {
         }
     }
     else {
-        Write-Output "Current app service plan tier and workers match the scaling schedule already. Exiting..." | timestamp
+        Write-Output "App service plan is scaled already. Exiting." | timestamp
     }
 }
 
 function SetDefaultDatabase {
-    Write-Output "Check if current database sku/tier matches the default." | timestamp
-    if ($currentSqlSku -ne $defaultSqlSku) {
-        Write-Output "Database is not in the default sku and/or tier. Scaling." | timestamp
-        Write-Output "Scaling database to default to sku $defaultSqlSku initiated." | timestamp
+    Write-Output "Check if current database is default already." | timestamp
+    if ($initialSqlSku -ne $defaultSqlSku) {
+        Write-Output "Database is not in default scaling." | timestamp
+        Write-Output "Scaling database to default sku $defaultSqlSku initiated." | timestamp
         try {
             Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -RequestedServiceObjectiveName $defaultSqlSku 
         }
@@ -189,15 +210,15 @@ function SetDefaultDatabase {
         }
     }
     else {
-        Write-Output "Current database tier and sku matches the default already. Exiting..." | timestamp
+        Write-Output "Database sku is in default scaling already. Exiting." | timestamp
     }
 }
 
 function SetDefaultAppServicePlan {
-    Write-Output "Check if current app service plan workers and tier matches the default." | timestamp
-    if ($currentAspTier -ne $defaultAspTier -or $currentAspWorkers -ne $scaledAspWorkers) {   
-        Write-Output "App service plan has not default workers and/or tier. Scaling." | timestamp
-        Write-Output "Change to default tier $defaultAspTier with $defaultAspWorkers workers initiated" | timestamp
+    Write-Output "Check if current app service plan is in default scaling already." | timestamp
+    if ($initialAspTier -ne $defaultAspTier -or $initialAspWorkers -ne $defaultAspWorkers) {   
+        Write-Output "App service plan not in default scaling already." | timestamp
+        Write-Output "Scaling to default tier $defaultAspTier with $defaultAspWorkers workers initiated" | timestamp
         try {
             Set-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName -Tier $defaultAspTier -NumberofWorkers $defaultAspWorkers
         }
@@ -207,48 +228,30 @@ function SetDefaultAppServicePlan {
         }
     }
     else {
-        Write-Output "Current app service plan tier and workers match the default already. Exiting..." | timestamp
+        Write-Output "App service plan is in default scaling already. Exiting." | timestamp
     }
 }
 
-#Authenticate with MSI
-Write-Output "Connecting to azure via  Connect-AzAccount -Identity" | timestamp
-Connect-AzAccount -Identity 
-
-#Get current date/time and convert to $scalingScheduleTimeZone
+#Get current date and convert to timezone
 $now = Get-Date
 $timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("W. Europe Standard Time")
 $startTime = [System.TimeZoneInfo]::ConvertTime($now, $timeZone)
 Write-Output "Time: $($startTime)." | timestamp
 
-#Get current day of week, based on converted start time
+#Get day of week
 $currentDayOfWeek = [Int]($startTime).DayOfWeek
 Write-Output "Current day of week: $currentDayOfWeek." | timestamp
 
-# Get the scaling schedule for the current day of week
-$dayObjects = $scalingSchedule | ConvertFrom-Json | Where-Object { $_.WeekDays -contains $currentDayOfWeek } `
-| Select-Object @{Name = "StartTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StartTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }, `
+#Get the scaling schedule for the current day of week
+$scalingObject = $scalingSchedule | ConvertFrom-Json | Where-Object { $_.WeekDays -contains $currentDayOfWeek } `
+| Select-Object `
+@{Name = "StartTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StartTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }, `
 @{Name = "StopTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StopTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }
 
-if ($shouldScaleSql) {
-    $initialSql = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
-    $initialSqlSku = $initialSql.CurrentServiceObjectiveName[1]
-
-    Write-Output "Initial database status: $($initialSql.Status), sku: $($initialSqlSku)" | timestamp
-
-}
-if ($shouldScaleAsp) {
-    $initialAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
-    $initialAspTier = $asp.Sku.Tier
-    $initialAspWorkers = $asp.Sku.Capacity
-
-    Write-Output "Initial app service plan status: $($initialAsp.Status), workers: $($initialAspWorkers), tier: $($initialAspTier)" | timestamp
-}
-
-if ($dayObjects -ne $null) {
-    $matchingObject = $dayObjects | Where-Object { ($startTime -ge $_.StartTime) -and ($startTime -lt $_.StopTime) } | Select-Object -First 1
+if ($scalingObject -ne $null) {
+    $matchingObject = $scalingObject | Where-Object { ($startTime -ge $_.StartTime) -and ($startTime -lt $_.StopTime) } | Select-Object -First 1
     if ($matchingObject -ne $null) {
-        Write-Output "Scaling schedule found." | timestamp
+        Write-Output "In scaled time window, setting scaled configuration." | timestamp
         if ($shouldScaleSql) {
             SetScaledDatabase
         }
@@ -257,7 +260,7 @@ if ($dayObjects -ne $null) {
         }
     }
     else {
-        Write-Output "No matching scaling schedule time slot for this time found." | timestamp
+        Write-Output "Not in scaled time window, setting default configuration." | timestamp
         if ($shouldScaleSql) {
             SetDefaultDatabase
         }
@@ -267,8 +270,7 @@ if ($dayObjects -ne $null) {
     }
 }
 else {
-    Write-Output "No matching scaling schedule for this day found." | timestamp
-    SetDefaultScale
+    Write-Output "No schedule found. Exiting" | timestamp
 }
 
 Write-Output "Done." | timestamp
@@ -278,7 +280,7 @@ if ($shouldScaleSql) {
     $finalSqlTier = $finalSql.Edition[1]
     $finalSqlSku = $finalSql.CurrentServiceObjectiveName[1]
 
-    Write-Output "Final database status: $($finalSql.Status), sku: $($finalSqlSku), tier: $($finalSqlTier)" | timestamp
+    Write-Output "Final database status: $($finalSql.Status[0]), sku: $($finalSqlSku), tier: $($finalSqlTier)" | timestamp
 }
 
 if ($shouldScaleAsp) {
