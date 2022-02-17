@@ -73,12 +73,12 @@ param(
     [AllowEmptyString()]
     [string] $databaseName,
 
-    [ValidateSet('S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
+    [ValidateSet('', 'S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
     [string] $defaultSqlSku,
 
-    [ValidateSet('S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
+    [ValidateSet('', 'S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
     [string] $scaledSqlSku,
@@ -86,22 +86,20 @@ param(
     [parameter(Mandatory = $false)]
     [string] $appServicePlanName,
 
-    [ValidateSet('Free', 'Shared', 'Basic', 'Standard', 'Premium', 'PremiumV2', 'PremiumV3', 'Isolated', 'IsolatedV2')]
+    [ValidateSet('', 'Free', 'Shared', 'Basic', 'Standard', 'Premium', 'PremiumV2', 'PremiumV3', 'Isolated', 'IsolatedV2')]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
     [string] $defaultAspTier,
 
-    [ValidateRange(1, 10)]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
     [string] $defaultAspWorkers,
 
-    [ValidateSet('Free', 'Shared', 'Basic', 'Standard', 'Premium', 'PremiumV2', 'PremiumV3', 'Isolated', 'IsolatedV2')]
+    [ValidateSet('', 'Free', 'Shared', 'Basic', 'Standard', 'Premium', 'PremiumV2', 'PremiumV3', 'Isolated', 'IsolatedV2')]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
     [string] $scaledAspTier,
 
-    [ValidateRange(1, 10)]
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
     [string] $scaledAspWorkers
@@ -148,16 +146,20 @@ $initialAsp = new-Object PsObject
 
 if ($shouldScaleSql) {
     $initialSql = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
-    $initialSqlSku = $initialSql.CurrentServiceObjectiveName[1]
 
-    Write-Output "Initial database status: $($initialSql.Status), sku: $($initialSqlSku)" | timestamp
+    $initialSqlStatus = $initialSql.Status[0]
+    $initialSqlSku = $initialSql.CurrentServiceObjectiveName[1]
+    
+    Write-Output "Initial database status: $($initialSqlStatus), sku: $($initialSqlSku)" | timestamp
 }
 if ($shouldScaleAsp) {
     $initialAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
-    $initialAspTier = $asp.Sku.Tier
-    $initialAspWorkers = $asp.Sku.Capacity
 
-    Write-Output "Initial app service plan status: $($initialAsp.Status), workers: $($initialAspWorkers), tier: $($initialAspTier)" | timestamp
+    $initialAspStatus = $initialAsp.Status
+    $initialAspWorkers = $initialAsp.Sku.Capacity
+    $initialAspTier = $initialAsp.Sku.Tier
+
+    Write-Output "Initial app service plan status: $($initialAspStatus), workers: $($initialAspWorkers), tier: $($initialAspTier)" | timestamp
 }
 
 function SetScaledDatabase {
@@ -273,22 +275,23 @@ else {
     Write-Output "No schedule found. Exiting" | timestamp
 }
 
-Write-Output "Done." | timestamp
-
 if ($shouldScaleSql) {
     $finalSql = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName
-    $finalSqlTier = $finalSql.Edition[1]
+
+    $finalSqlStatus = $finalSql.Status[0]
     $finalSqlSku = $finalSql.CurrentServiceObjectiveName[1]
 
-    Write-Output "Final database status: $($finalSql.Status[0]), sku: $($finalSqlSku), tier: $($finalSqlTier)" | timestamp
+    Write-Output "Final database status: $($finalSqlStatus), sku: $($finalSqlSku)" | timestamp
 }
 
 if ($shouldScaleAsp) {
     $finalAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
-    $finalAspTier = $finalAsp.Sku.Tier
-    $finalAspWorkers = $finalAsp.Sku.Capacity
 
-    Write-Output "Final app service plan status: $($finalAsp.Status), workers: $($finalAspWorkers), tier: $($finalAspTier)" | timestamp
+    $finalAspStatus = $finalAsp.Status
+    $finalAspWorkers = $finalAsp.Sku.Capacity
+    $finalAspTier = $finalAsp.Sku.Tier
+
+    Write-Output "Final app service plan status: $($finalAspStatus), workers: $($finalAspWorkers), tier: $($finalAspTier)" | timestamp
 }
 
 Write-Output "Script finished." | timestamp
