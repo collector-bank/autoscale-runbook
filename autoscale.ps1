@@ -16,39 +16,31 @@
 
 .PARAMETER databaseName
     Azure SQL Database name (case sensitive).
-.PARAMETER defaultSqlSku
-    Azure SQL Database Sku.
-    Available values: 'None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical'.
 
-.PARAMETER defaultSqlTier
-    Azure SQL Database Tier.
+.PARAMETER defaultSqlSku
+    Default Azure SQL Database Sku.
     Available values: S0, S1, S2, S4, S5, S6, S7, S9, S12, P1, P2, P4, P6, P11, P15.
 
 .PARAMETER scaledSqlSku
-    Azure SQL Database Sku.
-     values: 'None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical'
-
-.PARAMETER scaledSqlTier
-    Azure SQL Database Tier.
+    Scaled Azure SQL Database Sku.
     Available values: S0, S1, S2, S4, S5, S6, S7, S9, S12, P1, P2, P4, P6, P11, P15.
     
 .PARAMETER appServicePlanName
     Name of the App Service Plan
 
 .PARAMETER defaultAspTier
-    Azure App Service Plan Tier.
+    Default Azure App Service Plan Tier.
     Available values: Free, Shared, Basic, Standard, Premium, PremiumV2, PremiumV3, Isolated, IsolatedV2.
 
 .PARAMETER defaultAspWorkers
-    Azure SQL Database Sku.
-    Numbers of instances of the App Service Plan.
+    Default Numbers of instances of the App Service Plan.
 
 .PARAMETER scaledAspTier
-    Azure SQL Database Tier.
+    Scaled Azure SQL Database Tier.
     Available values: Free, Shared, Basic, Standard, Premium, PremiumV2, PremiumV3, Isolated, IsolatedV2.
 
 .PARAMETER scaledAspWorkers
-    Numbers of instances of the App Service Plan.
+    Scaled Numbers of instances of the App Service Plan.
 
 .EXAMPLE
     -resourceGroupName myResourceGroup
@@ -56,10 +48,8 @@
 
     -serverName mySqlServer
     -databaseName myDatabase
-    -defaultSqlSku Standard
-    -defaultSqlTier S0
-    -scaledSqlSku Standard
-    -scaledSqlTier S1
+    -defaultSqlSku S0
+    -scaledSqlSku S1
 
     -appServicePlanName myAppServicePlan
     -defaultAspTier Standard
@@ -76,167 +66,145 @@ param(
     [string] $scalingSchedule,
 
     [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
+    [AllowEmptyString()]
     [string] $serverName,
 
     [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
+    [AllowEmptyString()]
     [string] $databaseName,
 
-    [ValidateSet('None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical')]
+    [ValidateSet('', 'S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
     [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
+    [AllowEmptyString()]
     [string] $defaultSqlSku,
 
-    [ValidateSet('S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
+    [ValidateSet('', 'S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
     [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
-    [string] $defaultSqlTier,
-
-    [ValidateSet('None', 'Basic', 'Standard', 'Premium', 'DataWarehouse', 'Free', 'Stretch', 'GeneralPurpose', 'Hyperscale', 'BusinessCritical')]
-    [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
+    [AllowEmptyString()]
     [string] $scaledSqlSku,
-
-    [ValidateSet('S0', 'S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S9', 'S12', 'P1' , 'P2' , 'P4' , 'P6' , 'P11' , 'P15')]
-    [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
-    [string] $scaledSqlTier,
     
     [parameter(Mandatory = $false)]
     [string] $appServicePlanName,
 
-    [ValidateSet('Free', 'Shared', 'Basic', 'Standard', 'Premium', 'PremiumV2', 'PremiumV3', 'Isolated', 'IsolatedV2')]
+    [ValidateSet('', 'Free', 'Shared', 'Basic', 'Standard', 'Premium', 'PremiumV2', 'PremiumV3', 'Isolated', 'IsolatedV2')]
     [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
+    [AllowEmptyString()]
     [string] $defaultAspTier,
 
-    [ValidateRange(1, 10)]
     [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
+    [AllowEmptyString()]
     [string] $defaultAspWorkers,
 
-    [ValidateSet('Free', 'Shared', 'Basic', 'Standard', 'Premium', 'PremiumV2', 'PremiumV3', 'Isolated', 'IsolatedV2')]
+    [ValidateSet('', 'Free', 'Shared', 'Basic', 'Standard', 'Premium', 'PremiumV2', 'PremiumV3', 'Isolated', 'IsolatedV2')]
     [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
+    [AllowEmptyString()]
     [string] $scaledAspTier,
 
-    [ValidateRange(1, 10)]
     [parameter(Mandatory = $false)]
-	[AllowEmptyString()]
+    [AllowEmptyString()]
     [string] $scaledAspWorkers
 )
 
-if($serverName -ne $null -and
-	$databaseName -ne $null -and
-	$defaultSqlSku -ne $null -and
-	$defaultSqlTier -ne $null -and
-	$scaledSqlSku -ne $null -and
-	$scaledSqlTier -ne $null)
-	{
-		Write-Output "Database scaling is enabled"
-		$shouldScaleSql = $true
-	}
-	else{
-		Write-Output "Database scaling is disabled"
-		$shouldScaleSql = $false
-	}
-
-if($appServicePlanName -ne $null -and
-	$defaultAspTier -ne $null -and
-	$defaultAspWorkers -ne $null -and
-	$scaledAspTier -ne $null -and
-	$scaledAspWorkers -ne $null)
-	{
-		Write-Output "App service plan scaling is enabled"
-		$shouldScaleAsp = $true
-	}
-	else{
-		Write-Output "App service plan scaling is disabled"
-		$shouldScaleAsp = $false
-	}
-
-
 filter timestamp { "[$(Get-Date -Format G)]: $_" }
 
-$timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("W. Europe Standard Time")
-
 Write-Output "Script started." | timestamp
+
+if ([string]::IsNullOrEmpty($serverName) -or
+    [string]::IsNullOrEmpty($databaseName) -or
+    [string]::IsNullOrEmpty($defaultSqlSku) -or
+    [string]::IsNullOrEmpty($scaledSqlSku)) {
+    Write-Output "Database scaling is disabled" | timestamp
+    $shouldScaleSql = $false
+}
+else {
+    Write-Output "Database scaling is enabled" | timestamp
+    $shouldScaleSql = $true
+}
+
+if ([string]::IsNullOrEmpty($appServicePlanName) -or
+    [string]::IsNullOrEmpty($defaultAspTier) -or
+    [string]::IsNullOrEmpty($defaultAspWorkers) -or
+    [string]::IsNullOrEmpty($scaledAspTier) -or
+    [string]::IsNullOrEmpty($scaledAspWorkers)) {
+    Write-Output "App service plan scaling is disabled" | timestamp
+    $shouldScaleAsp = $false
+}
+else {
+    Write-Output "App service plan scaling is enabled" | timestamp
+    $shouldScaleAsp = $true
+}
 
 $VerbosePreference = "Continue"
 $ErrorActionPreference = "Stop"
 
 #Authenticate with MSI
 Write-Output "Connecting to azure via  Connect-AzAccount -Identity" | timestamp
-Connect-AzAccount -Identity 
+Connect-AzAccount -Identity
 
-#Get current date/time and convert to $scalingScheduleTimeZone
-$now = Get-Date
-$startTime = [System.TimeZoneInfo]::ConvertTime($now, $timeZone)
-Write-Output "Time: $newTime." | timestamp
+$initialSql = new-Object PsObject
+$initialAsp = new-Object PsObject
 
-#Get current day of week, based on converted start time
-$currentDayOfWeek = [Int]($startTime).DayOfWeek
-Write-Output "Current day of week: $currentDayOfWeek." | timestamp
+if ($shouldScaleSql) {
+    $initialSql = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
 
-# Get the scaling schedule for the current day of week
-$dayObjects = $scalingSchedule | ConvertFrom-Json | Where-Object { $_.WeekDays -contains $currentDayOfWeek } `
-| Select-Object SqlSku, SqlTier, `
-@{Name = "StartTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StartTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }, `
-@{Name = "StopTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StopTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }
+    $initialSqlStatus = $initialSql.Status[0]
+    $initialSqlSku = $initialSql.CurrentServiceObjectiveName[1]
+    
+    Write-Output "Initial database status: $($initialSqlStatus), sku: $($initialSqlSku)" | timestamp
+}
+if ($shouldScaleAsp) {
+    $initialAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
 
-# Scale Database
-$sqlDb = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName 
-$asp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
+    $initialAspStatus = $initialAsp.Status
+    $initialAspWorkers = $initialAsp.Sku.Capacity
+    $initialAspTier = $initialAsp.Sku.Tier
 
-$currentSqlTier = $sqlDb.CurrentServiceObjectiveName[1]
-$currentSqlSku = $sqlDb.Edition[1] 
-$currentAspTier = $asp.Sku.Tier
-$currentAspWorkers = $asp.Sku.Capacity
-
-function SetScaledDatabase{
-    Write-Output "Check if current database sku/tier is matching" | timestamp
-        if ($currentSqlTier -ne $scaledSqlTier -or $currentSqlSku -ne $scaledSqlSku) {
-            Write-Output "Database is not in the sku and/or tier of the scaling schedule." | timestamp
-            Write-Output "Scaling database to sku $scaledSqlSku and tier $scaledSqlTier initiated..." | timestamp
-            try {
-                Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -Edition $scaledSqlSku -RequestedServiceObjectiveName $scaledSqlTier
-            }
-            catch {
-                $message = $_
-                Write-Warning "Error scaling Sql: $message" | timestamp
-            }
-        }
-        else {
-            Write-Output "Current database tier and sku match the scaling schedule already. Exiting..." | timestamp
-        }
+    Write-Output "Initial app service plan status: $($initialAspStatus), workers: $($initialAspWorkers), tier: $($initialAspTier)" | timestamp
 }
 
-function SetScaledAppServicePlan{
-    Write-Output "Check if current app service plan workers and tier are matching" | timestamp
-        if ($currentAspTier -ne $scaledAspTier -or $currentAspWorkers -ne $scaledAspWorkers) {
-            Write-Output "App service plan is not in the workers and/or tier of the scaling schedule." | timestamp
-            Write-Output "Scaling app service plan to tier $scaledAspTier with $scaledAspWorkers workers initiated..." | timestamp
-            try {
-                Set-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName -Tier $scaledAspTier -NumberofWorkers $scaledAspWorkers
-            }
-            catch {
-                $message = $_
-                Write-Warning "Error scaling app service plan: $message" | timestamp
-            }
-        }
-        else {
-            Write-Output "Current app service plan tier and workers match the scaling schedule already. Exiting..." | timestamp
-        }
-}
-
-function SetDefaultDatabase{
-    Write-Output "Check if current database sku/tier matches the default." | timestamp
-    if ($currentSqlTier -ne $defaultSqlTier -or $currentSqlSku -ne $defaultSqlSku) {
-        Write-Output "Database is not in the default sku and/or tier. Scaling." | timestamp
-        Write-Output "Scaling database to default to sku $defaultSqlSku and tier $defaultSqlTier initiated." | timestamp
+function SetScaledDatabase {
+    Write-Output "Check if database is scaled already." | timestamp
+    if ($initialSqlSku -ne $scaledSqlSku) {
+        Write-Output "Database is not scaled already." | timestamp
+        Write-Output "Scaling database to sku $scaledSqlSku initiated..." | timestamp
         try {
-            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -Edition $defaultSqlSku -RequestedServiceObjectiveName $defaultSqlTier 
+            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -RequestedServiceObjectiveName $scaledSqlSku
+        }
+        catch {
+            $message = $_
+            Write-Warning "Error scaling Sql: $message" | timestamp
+        }
+    }
+    else {
+        Write-Output "Database sku is scaled already. Exiting" | timestamp
+    }
+}
+
+function SetScaledAppServicePlan {
+    Write-Output "Check if current app service plan is scaled already" | timestamp
+    if ($initialAspTier -ne $scaledAspTier -or $initialAspWorkers -ne $scaledAspWorkers) {
+        Write-Output "App service plan is not scaled already." | timestamp
+        Write-Output "Scaling app service plan to tier $scaledAspTier with $scaledAspWorkers workers initiated..." | timestamp
+        try {
+            Set-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName -Tier $scaledAspTier -NumberofWorkers $scaledAspWorkers
+        }
+        catch {
+            $message = $_
+            Write-Warning "Error scaling app service plan: $message" | timestamp
+        }
+    }
+    else {
+        Write-Output "App service plan is scaled already. Exiting." | timestamp
+    }
+}
+
+function SetDefaultDatabase {
+    Write-Output "Check if current database is default already." | timestamp
+    if ($initialSqlSku -ne $defaultSqlSku) {
+        Write-Output "Database is not in default scaling." | timestamp
+        Write-Output "Scaling database to default sku $defaultSqlSku initiated." | timestamp
+        try {
+            Set-AzSqlDatabase -ResourceGroupName $resourceGroupName -DatabaseName $databaseName -ServerName $serverName -RequestedServiceObjectiveName $defaultSqlSku 
         }
         catch {
             $message = $_
@@ -244,15 +212,15 @@ function SetDefaultDatabase{
         }
     }
     else {
-        Write-Output "Current database tier and sku matches the default already. Exiting..." | timestamp
+        Write-Output "Database sku is in default scaling already. Exiting." | timestamp
     }
 }
 
-function SetDefaultAppServicePlan{
-    Write-Output "Check if current app service plan workers and tier matches the default." | timestamp
-    if ($currentAspTier -ne $defaultAspTier -or $currentAspWorkers -ne $scaledAspWorkers) {   
-        Write-Output "App service plan has not default workers and/or tier. Scaling." | timestamp
-        Write-Output "Change to default tier $defaultAspTier with $defaultAspWorkers workers initiated" | timestamp
+function SetDefaultAppServicePlan {
+    Write-Output "Check if current app service plan is in default scaling already." | timestamp
+    if ($initialAspTier -ne $defaultAspTier -or $initialAspWorkers -ne $defaultAspWorkers) {   
+        Write-Output "App service plan not in default scaling already." | timestamp
+        Write-Output "Scaling to default tier $defaultAspTier with $defaultAspWorkers workers initiated" | timestamp
         try {
             Set-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName -Tier $defaultAspTier -NumberofWorkers $defaultAspWorkers
         }
@@ -262,50 +230,68 @@ function SetDefaultAppServicePlan{
         }
     }
     else {
-        Write-Output "Current app service plan tier and workers match the default already. Exiting..." | timestamp
+        Write-Output "App service plan is in default scaling already. Exiting." | timestamp
     }
 }
 
-if ($dayObjects -ne $null) {
-    # Scaling schedule found for this day
-    # Get the scaling schedule for the current time. If there is more than one available, pick the first
-    $matchingObject = $dayObjects | Where-Object { ($startTime -ge $_.StartTime) -and ($startTime -lt $_.StopTime) } | Select-Object -First 1
+#Get current date and convert to timezone
+$now = Get-Date
+$timeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById("W. Europe Standard Time")
+$startTime = [System.TimeZoneInfo]::ConvertTime($now, $timeZone)
+Write-Output "Time: $($startTime)." | timestamp
+
+#Get day of week
+$currentDayOfWeek = [Int]($startTime).DayOfWeek
+Write-Output "Current day of week: $currentDayOfWeek." | timestamp
+
+#Get the scaling schedule for the current day of week
+$scalingObject = $scalingSchedule | ConvertFrom-Json | Where-Object { $_.WeekDays -contains $currentDayOfWeek } `
+| Select-Object `
+@{Name = "StartTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StartTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }, `
+@{Name = "StopTime"; Expression = { [datetime]::ParseExact(($startTime.ToString("yyyy:MM:dd") + ":" + $_.StopTime), "yyyy:MM:dd:HH:mm:ss", [System.Globalization.CultureInfo]::InvariantCulture) } }
+
+if ($scalingObject -ne $null) {
+    $matchingObject = $scalingObject | Where-Object { ($startTime -ge $_.StartTime) -and ($startTime -lt $_.StopTime) } | Select-Object -First 1
     if ($matchingObject -ne $null) {
-        Write-Output "Scaling schedule found." | timestamp
-		if($shouldScaleSql){
-        	SetScaledDatabase
-		}
-		if($shouldScaleAsp){
-        	SetScaledAppServicePlan
-		}
+        Write-Output "In scaled time window, setting scaled configuration." | timestamp
+        if ($shouldScaleSql) {
+            SetScaledDatabase
+        }
+        if ($shouldScaleAsp) {
+            SetScaledAppServicePlan
+        }
     }
     else {
-        # Scaling schedule not found for current time
-        Write-Output "No matching scaling schedule time slot for this time found." | timestamp
-		if($shouldScaleSql){
-        	SetDefaultDatabase
-		}
-		if($shouldScaleAsp){
-        	SetDefaultAppServicePlan
-		}
+        Write-Output "Not in scaled time window, setting default configuration." | timestamp
+        if ($shouldScaleSql) {
+            SetDefaultDatabase
+        }
+        if ($shouldScaleAsp) {
+            SetDefaultAppServicePlan
+        }
     }
 }
 else {
-    # Scaling schedule not found for this day
-    Write-Output "No matching scaling schedule for this day found." | timestamp
-    SetDefaultScale
+    Write-Output "No schedule found. Exiting" | timestamp
 }
 
-Write-Output "Done." | timestamp
-$finalSqlDb = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName
-$finalAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
+if ($shouldScaleSql) {
+    $finalSql = Get-AzSqlDatabase -ResourceGroupName $resourceGroupName -ServerName $serverName
 
-$finalSqlTier = $finalSqlDb.CurrentServiceObjectiveName[1]
-$finalSqlSku = $finalSqlDb.Edition[1]
-Write-Output "Current database status: $($finalSqlDb.Status), sku: $($finalSqlSku), tier: $($finalSqlTier)" | timestamp
+    $finalSqlStatus = $finalSql.Status[0]
+    $finalSqlSku = $finalSql.CurrentServiceObjectiveName[1]
 
-$finalAspTier = $finalAsp.Sku.Tier
-$finalAspWorkers = $finalAsp.Sku.Capacity
+    Write-Output "Final database status: $($finalSqlStatus), sku: $($finalSqlSku)" | timestamp
+}
 
-Write-Output "Current app service plan status: $($finalAsp.Status), workers: $($finalAspWorkers), tier: $($finalAspTier)" | timestamp
+if ($shouldScaleAsp) {
+    $finalAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
+
+    $finalAspStatus = $finalAsp.Status
+    $finalAspWorkers = $finalAsp.Sku.Capacity
+    $finalAspTier = $finalAsp.Sku.Tier
+
+    Write-Output "Final app service plan status: $($finalAspStatus), workers: $($finalAspWorkers), tier: $($finalAspTier)" | timestamp
+}
+
 Write-Output "Script finished." | timestamp
