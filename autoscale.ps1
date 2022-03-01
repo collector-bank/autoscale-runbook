@@ -32,12 +32,20 @@
     Default Azure App Service Plan Tier.
     Available values: Free, Shared, Basic, Standard, Premium, PremiumV2, PremiumV3, Isolated, IsolatedV2.
 
+.PARAMETER defaultAspSize
+    Default Azure App Service Plan Size. Small=1, Medium=2, Large=3.
+    Available values: Small, Medium, Large.
+
 .PARAMETER defaultAspWorkers
     Default Numbers of instances of the App Service Plan.
 
 .PARAMETER scaledAspTier
     Scaled Azure SQL Database Tier.
     Available values: Free, Shared, Basic, Standard, Premium, PremiumV2, PremiumV3, Isolated, IsolatedV2.
+
+.PARAMETER scaledAspSize
+    Scaled Azure App Service Plan Size. Small=1, Medium=2, Large=3.
+    Available values: Small, Medium, Large.
 
 .PARAMETER scaledAspWorkers
     Scaled Numbers of instances of the App Service Plan.
@@ -53,8 +61,10 @@
 
     -appServicePlanName myAppServicePlan
     -defaultAspTier Standard
+    -defaultAspSize Medium
     -defaultAspWorkers 1
     -scaledAspTier PremiumV2
+    -scaledAspSize Large
     -scaledAspWorkers 3
 #>
 
@@ -91,6 +101,11 @@ param(
     [AllowEmptyString()]
     [string] $defaultAspTier,
 
+    [ValidateSet('', 'Small', 'Medium', 'Large')]
+    [parameter(Mandatory = $false)]
+    [AllowEmptyString()]
+    [string] $defaultAspSize,
+
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
     [string] $defaultAspWorkers,
@@ -99,6 +114,11 @@ param(
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
     [string] $scaledAspTier,
+
+    [ValidateSet('', 'Small', 'Medium', 'Large')]
+    [parameter(Mandatory = $false)]
+    [AllowEmptyString()]
+    [string] $scaledAspSize,
 
     [parameter(Mandatory = $false)]
     [AllowEmptyString()]
@@ -123,8 +143,10 @@ else {
 
 if ([string]::IsNullOrEmpty($appServicePlanName) -or
     [string]::IsNullOrEmpty($defaultAspTier) -or
+    [string]::IsNullOrEmpty($defaultAspSize) -or
     [string]::IsNullOrEmpty($defaultAspWorkers) -or
     [string]::IsNullOrEmpty($scaledAspTier) -or
+    [string]::IsNullOrEmpty($scaledAspSize) -or
     [string]::IsNullOrEmpty($scaledAspWorkers)) {
     Write-Output "App service plan scaling is disabled" | timestamp
     $shouldScaleAsp = $false
@@ -156,10 +178,11 @@ if ($shouldScaleAsp) {
     $initialAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
 
     $initialAspStatus = $initialAsp.Status
-    $initialAspWorkers = $initialAsp.Sku.Capacity
     $initialAspTier = $initialAsp.Sku.Tier
+    $initialAspSize = $initialAsp.Sku.Size
+    $initialAspWorkers = $initialAsp.Sku.Capacity
 
-    Write-Output "Initial app service plan status: $($initialAspStatus), workers: $($initialAspWorkers), tier: $($initialAspTier)" | timestamp
+    Write-Output "Initial app service plan status: $($initialAspStatus), tier: $($initialAspTier), size: $initialAspSize, workers: $($initialAspWorkers), " | timestamp
 }
 
 function SetScaledDatabase {
@@ -182,11 +205,11 @@ function SetScaledDatabase {
 
 function SetScaledAppServicePlan {
     Write-Output "Check if current app service plan is scaled already" | timestamp
-    if ($initialAspTier -ne $scaledAspTier -or $initialAspWorkers -ne $scaledAspWorkers) {
+    if ($initialAspTier -ne $scaledAspTier -or $initialAspSize -ne $scaledAspSize -or $initialAspWorkers -ne $scaledAspWorkers) {
         Write-Output "App service plan is not scaled already." | timestamp
-        Write-Output "Scaling app service plan to tier $scaledAspTier with $scaledAspWorkers workers initiated..." | timestamp
+        Write-Output "Scaling app service plan to tier $scaledAspTier and size $scaledAspSize with $scaledAspWorkers workers initiated..." | timestamp
         try {
-            Set-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName -Tier $scaledAspTier -NumberofWorkers $scaledAspWorkers
+            Set-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName -Tier $scaledAspTier -WorkerSize $scaledAspSize -NumberofWorkers $scaledAspWorkers
         }
         catch {
             $message = $_
@@ -218,11 +241,11 @@ function SetDefaultDatabase {
 
 function SetDefaultAppServicePlan {
     Write-Output "Check if current app service plan is in default scaling already." | timestamp
-    if ($initialAspTier -ne $defaultAspTier -or $initialAspWorkers -ne $defaultAspWorkers) {   
+    if ($initialAspTier -ne $defaultAspTier -or $initialAspSize -ne $defaultAspSize -or $initialAspWorkers -ne $defaultAspWorkers) {   
         Write-Output "App service plan not in default scaling already." | timestamp
-        Write-Output "Scaling to default tier $defaultAspTier with $defaultAspWorkers workers initiated" | timestamp
+        Write-Output "Scaling to default tier $defaultAspTier and size $defaultAspSize with $defaultAspWorkers workers initiated" | timestamp
         try {
-            Set-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName -Tier $defaultAspTier -NumberofWorkers $defaultAspWorkers
+            Set-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName -Tier $defaultAspTier -WorkerSize $defaultAspSize -NumberofWorkers $defaultAspWorkers
         }
         catch {
             $message = $_
@@ -288,10 +311,12 @@ if ($shouldScaleAsp) {
     $finalAsp = Get-AzAppServicePlan -ResourceGroupName $resourceGroupName -Name $appServicePlanName
 
     $finalAspStatus = $finalAsp.Status
-    $finalAspWorkers = $finalAsp.Sku.Capacity
     $finalAspTier = $finalAsp.Sku.Tier
+    $finalAspSize = $finalAsp.Sku.Size
+    $finalAspWorkers = $finalAsp.Sku.Capacity
 
-    Write-Output "Final app service plan status: $($finalAspStatus), workers: $($finalAspWorkers), tier: $($finalAspTier)" | timestamp
+
+    Write-Output "Final app service plan status: $($finalAspStatus), tier: $($finalAspTier), size: $($finalAspSize), workers: $($finalAspWorkers)" | timestamp
 }
 
 Write-Output "Script finished." | timestamp

@@ -10,8 +10,10 @@ Example
     -scaledSqlSku S1
     -appServicePlanName myAppServicePlan
     -defaultAspTier Standard
+    -defaultAspSize Small
     -defaultAspWorkers 1
     -scaledAspTier PremiumV2
+    -scaledAspSize Large
     -scaledAspWorkers 3
 ```
 Refer from terraform-runbook-setup, using latest master:
